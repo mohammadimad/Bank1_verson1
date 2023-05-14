@@ -7,7 +7,7 @@
 //using namespace Bank;
 using namespace std;
 const string ClientsFileName = "Clients2.txt";
-
+void ShowMainMenue();
 struct sClient {
 	string AccountNumber;
 	string AccountName;
@@ -15,6 +15,12 @@ struct sClient {
 	string PhoneNumber;
 	double AccountBalance;
 	bool MarkForDelete = false;
+};
+enum enMainMenueOptions
+{
+	eListClients = 1, eAddNewClient = 2,
+	eDeleteClient = 3, eUpdateClient = 4,
+	eFindClient = 5, eExit = 6
 };
 string ReadString(string Message) {
 	string Account;
@@ -75,10 +81,47 @@ void AddDateLineToFile(string FileName, string sDataLine) {
 		MyFile.close();
 	}
 }
-sClient ReadNewClient() {
+bool ClientExistsByAccountNumber(string AccountNumber, string FileName)
+{
+
+	vector <sClient> vClients;
+	fstream MyFile;
+	MyFile.open(FileName, ios::in);//read Mode
+
+	if (MyFile.is_open())
+	{
+		string Line;
+		sClient Client;
+
+		while (getline(MyFile, Line))
+		{
+			Client = ConvertLineToRecord(Line);
+			if (Client.AccountNumber == AccountNumber)
+			{
+				MyFile.close();
+				return true;
+			}
+			vClients.push_back(Client);
+		}
+
+		MyFile.close();
+
+	}
+	return false;
+}
+sClient ReadNewClient()
+{
 	sClient Client;
 	cout << "Enter Account Number? ";
+
+	// Usage of std::ws will extract allthe whitespace character
 	getline(cin >> ws, Client.AccountNumber);
+
+	while (ClientExistsByAccountNumber(Client.AccountNumber, ClientsFileName))
+	{
+		cout << "\nClient with [" << Client.AccountNumber << "] already exists, Enter another Account Number? ";
+		getline(cin >> ws, Client.AccountNumber);
+	}
 
 	cout << "Enter PinCode? ";
 	getline(cin, Client.PinCode);
@@ -91,6 +134,7 @@ sClient ReadNewClient() {
 
 	cout << "Enter AccountBalance? ";
 	cin >> Client.AccountBalance;
+
 	return Client;
 }
 string ConvertRecordToLine(sClient Client, string Seperator = "#//#") {
@@ -116,21 +160,8 @@ void AddNewClient() {
 	Client = ReadNewClient();
 	AddDateLineToFile(ClientsFileName, ConvertRecordToLine(Client));
 }
-void AddClients(vector<sClient> vClients) {
-	sClient Clients;
-	string AccountNumber;
-	bool findAccount = true;
-	bool freind = false;
-	do {
-
-		cout << "Enter account number: ";
-		cin >> AccountNumber;
-		findAccount = FindClientByAccountNumber(Clients, AccountNumber, vClients);
-		if (findAccount == true) {
-			freind = true;
-			cout << "Clients with [" << AccountNumber << "] already exits, Enter another Account Number? \n";
-		}
-	} while (freind);
+void AddClients() {
+	vector <sClient> vClients = LoadClientsDataFromFile(ClientsFileName);
 	char AddMore = 'Y';
 	do {
 		system("cls");
@@ -141,6 +172,12 @@ void AddClients(vector<sClient> vClients) {
 		cin >> AddMore;
 	} while (toupper(AddMore) == 'Y');
 }
+void ShowAddNewClinetsScreen() {
+	cout << "\n----------------------\n";
+	cout << "\tAdd Cleints Screen";
+	cout << "\n-----------------------\n";
+	AddClients();
+}
 void PrintClientRecord(sClient Client) {
 	cout << "| " << left << setw(15) << Client.AccountNumber;
 	cout << "| " << left << setw(10) << Client.PinCode;
@@ -148,8 +185,9 @@ void PrintClientRecord(sClient Client) {
 	cout << "| " << left << setw(12) << Client.PhoneNumber;
 	cout << "| " << left << setw(12) << Client.AccountBalance;
 }
-void ShowClientsList(vector <sClient>vClinets) {
-	cout << "\n\t\t\t\tClients List ( " << vClinets.size() << ") Client(s).";
+void ShowAllClientsScreen() {
+	vector <sClient> vClients = LoadClientsDataFromFile(ClientsFileName);
+	cout << "\n\t\t\t\tClients List ( " << vClients.size() << ") Client(s).";
 	cout << "\n________________________________________________________";
 	cout << "__________________________________________________________\n" << endl;
 	cout << "| " << left << setw(15) << "Account Number";
@@ -159,29 +197,19 @@ void ShowClientsList(vector <sClient>vClinets) {
 	cout << "| " << left << setw(12) << "Balance";
 	cout << "\n_______________________________________________________";
 	cout << "_________________________________________\n" << endl;
-	for (sClient Client : vClinets) {
-		PrintClientRecord(Client);
-		cout << endl;
-	}
+	if (vClients.size() == 0)
+		cout << "\t\t\tNo Clinets Available In the Screen!";
+	else 
+		for (sClient Client : vClients) {
+			PrintClientRecord(Client);
+			cout << endl;
+		}
+	
 	cout << "\n_______________________________________________________";
 	cout << "_________________________________________\n" << endl;
 }
 
-void ShowMainMenue() {
-	
-	system("cls");
-	cout << "=======================================\n";
-	cout << "\t\tMain Screen\n";
-	cout << "=======================================\n";
-	cout << "\t[1] Show Client List.\n";
-	cout << "\t[2] Add New Client.\n";
-	cout << "\t[3] Delete Client.\n";
-	cout << "\t[4] Update Client.\n";
-	cout << "\t[5] Show Client Info.\n";
-	cout << "\t[6] Exit.\n";
-	cout << "=======================================\n";
-	
-}
+
 
 void PrintRecord(sClient clinet) {
 
@@ -247,6 +275,20 @@ bool DeleteClientByAccountNumber(string AccountNumber, vector <sClient>& vClient
 		return false;
 	}
 }
+string ReadAccountNumber() {
+	string AccountNumber = "";
+	cout << "Enter Account Number: ";
+	cin >> AccountNumber;
+	return AccountNumber;
+}
+void ShowDeleteClientScreen() {
+	cout << "\n----------------------\n";
+	cout << "\tDelete Cleints Screen";
+	cout << "\n-----------------------\n";
+	vector <sClient> vClients = LoadClientsDataFromFile(ClientsFileName);
+	string AccountNumber = ReadAccountNumber();
+	DeleteClientByAccountNumber(AccountNumber ,vClients);
+}
 sClient ChangeClinetRecord(string AccountNumber) {
 	sClient Client;
 	Client.AccountNumber = AccountNumber;
@@ -288,77 +330,101 @@ bool UpdateClientByAccountNumber(string AccountNumber, vector <sClient>& vClient
 		return false;
 	}
 }
-bool PrintlientByAccountNumber(sClient& Clients, string AccountNumber, vector <sClient> vClients) {
-	for (sClient& C : vClients) {
-		if (C.AccountNumber == AccountNumber) {
-			Clients = C;
-			return true;
-		}
-	}
-	return false;
+
+void ShowUpdateClientScreen() {
+	cout << "\n----------------------\n";
+	cout << "\tUpdate Cleints Screen";
+	cout << "\n-----------------------\n";
+	vector <sClient> vClients = LoadClientsDataFromFile(ClientsFileName);
+	string AccountNumber = ReadAccountNumber();
+	UpdateClientByAccountNumber(AccountNumber, vClients);
 }
-void StartProgramming();
+void ShowFindClientScreen() {
+	cout << "\n----------------------\n";
+	cout << "\tFind Cleints Screen";
+	cout << "\n-----------------------\n";
+	vector <sClient> vClients = LoadClientsDataFromFile(ClientsFileName);
+	sClient Client;
+	string AccountNumber = ReadAccountNumber();
+	if (FindClientByAccountNumber(Client, AccountNumber, vClients) == true)
+		PrintRecord(Client);
+	else
+		cout << "Client with Account Number (" << AccountNumber << ") is Not Found!\n";
+}
 void GoBackToMainMenu()
 {
 	int x;
 	cout << "\n\nPress Any Key To Go Back To Main Menu Screen..";
 	system("pause>0");
-	StartProgramming();
+	ShowMainMenue();
 
 }
-void StartProgramming() {
-	
-	int x;
-	string AccountNumber;
-	sClient Clinet;
-	vector <sClient> vClient = LoadClientsDataFromFile(ClientsFileName);
-	ShowMainMenue();
-	cout << "Choose what do you want to do [1 to 6]? ";
-	cin >> x;
-	switch (x) {
-	case 1:
-		ShowClientsList(vClient);
-		GoBackToMainMenu();
-		//cout << "Press any key to go  back Main Menue...";
-		//system("pause");
-		break;
-	case 2:
-		AddClients(vClient);
-		GoBackToMainMenu();
-		break;
-	case 3:
-		cout << "Enter Account Number: ";
-		cin >> AccountNumber;
-		DeleteClientByAccountNumber(AccountNumber, vClient);
-		GoBackToMainMenu();
-		break;
-	case 4:
-		cout << "Enter Account Number: ";
-		cin >> AccountNumber;
-		UpdateClientByAccountNumber(AccountNumber, vClient);
-		GoBackToMainMenu();
-		break;
-	case 5:
-		cout << "Enter Account Number: ";
-		cin >> AccountNumber;
+short ReadMainMenue() {
 
-		if (PrintlientByAccountNumber(Clinet, AccountNumber, vClient) == true)
-			PrintRecord(Clinet);
-		else
-			cout << "Client with Account Number (" << AccountNumber << ") is Not Found!\n";
+	cout << "Choose what do you want to do? [1 to 6]? ";
+	short Choice = 0;
+	cin >> Choice;
+
+	return Choice;
+}
+void ShowEndsScreen() {
+	cout << "-------------------------------\n";
+	cout << "\tProgram Ends\n";
+	cout << "-------------------------------";
+	system("pause>0");
+	
+}
+void PerfomMainMenueOption(enMainMenueOptions MainMenueOption) {
+	
+	switch (MainMenueOption) {
+	case enMainMenueOptions::eListClients:
+		system("cls");
+		ShowAllClientsScreen();
+		GoBackToMainMenu();
+		
+		break;
+	case enMainMenueOptions::eAddNewClient:
+		system("cls");
+		ShowAddNewClinetsScreen();
 		GoBackToMainMenu();
 		break;
-	case 6:
-		cout << "-------------------------------\n";
-		cout << "\tProgram Ends\n";
-		cout << "-------------------------------";
-		system("pause>0");
+	case enMainMenueOptions::eDeleteClient:
+		system("cls");
+		ShowDeleteClientScreen();
+		GoBackToMainMenu();
+		break;
+	case enMainMenueOptions::eUpdateClient:
+		system("cls");
+		ShowUpdateClientScreen();
+		GoBackToMainMenu();
+		break;
+	case enMainMenueOptions::eFindClient:
+		system("cls");
+		ShowFindClientScreen();
+		GoBackToMainMenu();
+		break;
+	case enMainMenueOptions::eExit:
+		system("cls");
+		ShowEndsScreen();
 		break;
 	}
 }
+void ShowMainMenue() {
+
+	system("cls");
+	cout << "=======================================\n";
+	cout << "\t\tMain Screen\n";
+	cout << "=======================================\n";
+	cout << "\t[1] Show Client List.\n";
+	cout << "\t[2] Add New Client.\n";
+	cout << "\t[3] Delete Client.\n";
+	cout << "\t[4] Update Client.\n";
+	cout << "\t[5] Show Client Info.\n";
+	cout << "\t[6] Exit.\n";
+	cout << "=======================================\n";
+	PerfomMainMenueOption((enMainMenueOptions)ReadMainMenue());
+}
 int main()
 { 
-  //  ShowMainMenue();
-    StartProgramming();
+    ShowMainMenue();
 }
-
